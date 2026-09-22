@@ -1,0 +1,2 @@
+id,date_open,date_close,ticker,strategy,contract,qty,entry,exit,max_loss,delta_at_entry,prob_at_entry,thesis,exit_rule,pnl,pnl_pct,rule_violation,feeling,lesson
+0,2026-09-22,,VST,long call,VST270115C00160000,1,8.65,,865,~0.38,~28% ITM,Quantfolio undervaluation + Q3 earnings catalyst,stop 4.30 / target 13.00 / time stop 2026-12-01,,,sizing (17x experiment account),,logged as Trade 0 - pre-experiment position

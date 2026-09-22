@@ -1,0 +1,18 @@
+{
+  "watchlist": ["VST", "T", "F", "SOFI", "PFE", "NIO", "RIVN", "SNAP", "CCL", "KVUE"],
+  "snapshot": {"min_dte": 14, "max_dte": 220, "strike_band_pct": 25},
+  "screen": {
+    "comment": "Level-2 long-option filter for the small-account experiment. Edit freely.",
+    "types": ["C", "P"],
+    "max_underlying_price": 30,
+    "min_dte": 30,
+    "max_dte": 45,
+    "min_premium": 0.10,
+    "max_premium": 0.50,
+    "min_oi": 500,
+    "max_spread_pct": 10,
+    "min_abs_delta": 0.25,
+    "max_abs_delta": 0.45,
+    "max_rows": 25
+  }
+}

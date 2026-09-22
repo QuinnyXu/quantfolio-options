@@ -1,0 +1,34 @@
+name: options-eod
+
+on:
+  schedule:
+    # 20:25 UTC = 4:25 pm EDT / 3:25 pm EST. Cron can lag 5-15 min.
+    - cron: "25 20 * * 1-5"
+    # optional midday mark, 16:05 UTC = 12:05 pm EDT
+    - cron: "5 16 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: options-eod
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests yfinance
+      - run: python fetch_options.py
+      - name: Commit data
+        run: |
+          git config user.name "options-bot"
+          git config user.email "options-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "no changes" || git commit -m "data: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
