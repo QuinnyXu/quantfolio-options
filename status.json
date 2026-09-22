@@ -1,0 +1,41 @@
+{
+  "asof": "2026-09-22T23:19:43Z",
+  "date": "2026-09-22",
+  "tickers": [
+    "CCL",
+    "F",
+    "KVUE",
+    "NIO",
+    "PFE",
+    "RIVN",
+    "SNAP",
+    "SOFI",
+    "T",
+    "VST"
+  ],
+  "sources": {
+    "CCL": "cboe",
+    "F": "cboe",
+    "KVUE": "cboe",
+    "NIO": "cboe",
+    "PFE": "cboe",
+    "RIVN": "cboe",
+    "SNAP": "cboe",
+    "SOFI": "cboe",
+    "T": "cboe",
+    "VST": "cboe"
+  },
+  "spots": {
+    "CCL": 22.32,
+    "F": 13.09,
+    "KVUE": 17.85,
+    "NIO": 3.72,
+    "PFE": 27.93,
+    "RIVN": 15.14,
+    "SNAP": 5.64,
+    "SOFI": 17.17,
+    "T": 25.14,
+    "VST": 140.41
+  },
+  "errors": []
+}
