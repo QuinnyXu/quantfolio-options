@@ -249,7 +249,7 @@ def build_screen(cfg, chains):
     s = cfg["screen"]
     out = []
     for tkr, (spot, rows) in chains.items():
-        if not spot or spot > s["max_underlying_price"]:
+        if not spot or spot > s.get("max_underlying_price", 1e9):
             continue
         for o in rows:
             if o["type"] not in s["types"]:
@@ -267,13 +267,18 @@ def build_screen(cfg, chains):
                 continue
             o2 = dict(o)
             o2["max_loss"] = round(o["mid"] * 100, 2)
+            acct = float(cfg.get("account_size", 0) or 0)
+            o2["risk_pct_of_account"] = round(o2["max_loss"] / acct * 100, 1) if acct else None
+            if acct and o2["risk_pct_of_account"] > s.get("max_risk_pct_of_account", 100):
+                continue
+            o2["in_pool"] = "Y" if tkr in set(t.upper() for t in cfg.get("pool", [])) else ""
             o2["score"] = round(d * 100 - (o["spread_pct"] or 0), 1)
             out.append(o2)
     out.sort(key=lambda r: (-r["score"], r["spread_pct"] or 99))
     return out[: s["max_rows"]]
 
-SCREEN_COLS = ["ticker", "contract", "expiry", "dte", "type", "strike", "moneyness_pct", "spot", "bid", "ask", "mid",
-               "max_loss", "spread_pct", "iv", "delta", "theta", "prob_itm", "volume", "oi", "score"]
+SCREEN_COLS = ["ticker", "in_pool", "contract", "expiry", "dte", "type", "strike", "moneyness_pct", "spot", "bid", "ask", "mid",
+               "max_loss", "risk_pct_of_account", "spread_pct", "iv", "delta", "theta", "prob_itm", "volume", "oi", "score"]
 
 # --------------------------------------------------------------------------- #
 def _f(x):
@@ -296,7 +301,7 @@ def main():
     run_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     positions = read_positions()
     tickers = {parse_occ(p["contract"])[0] for p in positions}
-    tickers |= {t.strip().upper() for t in cfg.get("watchlist", []) if t.strip()}
+    tickers |= {t.strip().upper() for t in cfg.get("watchlist", []) + cfg.get("pool", []) if t.strip()}
 
     errors, chains, sources = [], {}, {}
     snap = cfg["snapshot"]

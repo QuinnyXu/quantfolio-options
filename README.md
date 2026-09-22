@@ -29,6 +29,11 @@ Data: CBOE delayed quotes (15 min) with yfinance fallback. Greeks come from CBOE
 ## Schedule
 Weekdays 20:25 UTC (≈4:25 pm ET) and 16:05 UTC (≈12:05 pm ET). Change in `.github/workflows/options.yml`.
 
+## Rules
+- Experiment account: $1,000. Max risk per trade 5% ($50) = the option premium. One open experiment position at a time (the VST 160C is tracked separately, not counted).
+- Tickers in `pool` are Quinny's names of interest and get a `Y` in `screen.csv`; Claude picks the single top choice each time.
+- Company-insight CSVs stay out of this public repo; put them in the Claude Project files instead.
+
 ## Adding a position
 Append a row to `positions.csv`. OCC symbol format: `TICKER` + `YYMMDD` + `C|P` + strike×1000 padded to 8 digits, e.g. `VST270115C00160000`.
 

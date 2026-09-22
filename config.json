@@ -1,18 +1,20 @@
 {
-  "watchlist": ["VST", "T", "F", "SOFI", "PFE", "NIO", "RIVN", "SNAP", "CCL", "KVUE"],
+  "account_size": 1000,
+  "pool": ["SYK", "NOW", "NVDA", "ADSK", "AVGO", "VST", "AMZN", "ISRG", "GOOGL", "UBER", "VEEV", "NYT"],
+  "watchlist": ["T", "F", "SOFI", "PFE", "NIO", "RIVN", "SNAP", "CCL", "KVUE"],
   "snapshot": {"min_dte": 14, "max_dte": 220, "strike_band_pct": 25},
   "screen": {
-    "comment": "Level-2 long-option filter for the small-account experiment. Edit freely.",
+    "comment": "Level-2 long-option filter. Risk cap is 5% of account_size per trade; one open experiment position at a time.",
     "types": ["C", "P"],
-    "max_underlying_price": 30,
     "min_dte": 30,
-    "max_dte": 45,
+    "max_dte": 60,
     "min_premium": 0.10,
-    "max_premium": 0.50,
-    "min_oi": 500,
+    "max_premium": 3.00,
+    "max_risk_pct_of_account": 5,
+    "min_oi": 300,
     "max_spread_pct": 10,
     "min_abs_delta": 0.25,
     "max_abs_delta": 0.45,
-    "max_rows": 25
+    "max_rows": 30
   }
 }
