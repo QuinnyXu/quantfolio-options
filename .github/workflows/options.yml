@@ -6,7 +6,16 @@ on:
     - cron: "25 20 * * 1-5"
     # optional midday mark, 16:05 UTC = 12:05 pm EDT
     - cron: "5 16 * * 1-5"
+    # early-session mark, 13:50 UTC = 9:50 am EDT
+    - cron: "50 13 * * 1-5"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - config.json
+      - positions.csv
+      - fetch_options.py
+      - .github/workflows/options.yml
 
 permissions:
   contents: write
@@ -31,4 +40,5 @@ jobs:
           git config user.email "options-bot@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && echo "no changes" || git commit -m "data: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git pull --rebase
           git push
