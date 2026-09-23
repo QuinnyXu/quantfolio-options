@@ -9,10 +9,10 @@ End-of-day option data + trade journal for the small-account experiment. Runs on
 | `config.json` | Watchlist for snapshots + screen filter thresholds. |
 | `marks.csv` | Latest mark, Greeks, P&L and rule flags (`STOP_HIT`, `TARGET_HIT`, `TIME_STOP`) per open position. |
 | `marks_history.csv` | Same, appended every run (theta bleed over time). |
-| `screen.csv` | Long-option candidates passing the Level-2 filter, best first. |
+| `screen.csv` | Long-option candidates passing the v2.1 filter (60–180 DTE, premium ≤ cap, delta 0.35–0.55), best first, with earnings date. |
 | `snapshots/<date>/<TICKER>.csv` | Trimmed chain history. |
 | `journal.csv` | Trade journal. Claude drafts rows; Quinny commits. |
-| `status.json` | Run timestamp, data source per ticker, errors. |
+| `status.json` | Run timestamp, active risk cap, data source per ticker, errors. |
 
 Data: CBOE delayed quotes (15 min) with yfinance fallback. Greeks come from CBOE when present, otherwise Black-Scholes from IV.
 
@@ -27,12 +27,15 @@ Data: CBOE delayed quotes (15 min) with yfinance fallback. Greeks come from CBOE
 5. Add to the Project notes: `Options data: https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`
 
 ## Schedule
-Weekdays 20:25 UTC (≈4:25 pm ET) and 16:05 UTC (≈12:05 pm ET). Change in `.github/workflows/options.yml`.
+Weekdays 13:50, 16:05 and 20:25 UTC (≈9:50 am, 12:05 pm, 4:25 pm EDT; one hour later in ET after Nov 1). Change in `.github/workflows/options.yml`.
 
-## Rules
-- Experiment account: $1,000. Max risk per trade 5% ($50) = the option premium. One open experiment position at a time (the VST 160C is tracked separately, not counted).
-- Tickers in `pool` are Quinny's names of interest and get a `Y` in `screen.csv`; Claude picks the single top choice each time.
-- Company-insight CSVs stay out of this public repo; put them in the Claude Project files instead.
+## Rules (v2.1)
+- Experiment fund: $1,000 (`fund_value` in `config.json`). Max premium per trade 25% of the fund; 15% while the fund is below $700. The premium is the max loss.
+- One open experiment position at a time, one contract, limit orders only. The VST 160C is tracked separately, not counted.
+- Screen: 60–180 DTE, |delta| 0.35–0.55, OI ≥ 300, spread ≤ 10%. Exits: stop −50%, target +100%, time stop at half the DTE at entry.
+- A pick also needs a Buy / Buy-on-weakness verdict in the Quantfolio index (kept outside this repo).
+- Pool names above ~$150 price beyond the cap at these deltas, so the screen mostly covers the watchlist plus UBER/NYT. `earnings_in_window` flags contracts whose expiry is after the next earnings date.
+- Full rules and routine: `options_experiment_handover.md`.
 
 ## Adding a position
 Append a row to `positions.csv`. OCC symbol format: `TICKER` + `YYMMDD` + `C|P` + strike×1000 padded to 8 digits, e.g. `VST270115C00160000`.

@@ -1,20 +1,52 @@
 {
   "account_size": 1000,
-  "pool": ["SYK", "NOW", "NVDA", "ADSK", "AVGO", "VST", "AMZN", "ISRG", "GOOGL", "UBER", "VEEV", "NYT"],
-  "watchlist": ["T", "F", "SOFI", "PFE", "NIO", "RIVN", "SNAP", "CCL", "KVUE"],
-  "snapshot": {"min_dte": 14, "max_dte": 220, "strike_band_pct": 25},
+  "fund_value": 1000,
+  "pool": [
+    "SYK",
+    "NOW",
+    "NVDA",
+    "ADSK",
+    "AVGO",
+    "VST",
+    "AMZN",
+    "ISRG",
+    "GOOGL",
+    "UBER",
+    "VEEV",
+    "NYT"
+  ],
+  "watchlist": [
+    "T",
+    "F",
+    "SOFI",
+    "PFE",
+    "NIO",
+    "RIVN",
+    "SNAP",
+    "CCL",
+    "KVUE"
+  ],
+  "snapshot": {
+    "min_dte": 14,
+    "max_dte": 220,
+    "strike_band_pct": 25
+  },
   "screen": {
-    "comment": "Level-2 long-option filter. Risk cap is 5% of account_size per trade; one open experiment position at a time.",
-    "types": ["C", "P"],
-    "min_dte": 30,
-    "max_dte": 60,
-    "min_premium": 0.10,
-    "max_premium": 3.00,
-    "max_risk_pct_of_account": 5,
+    "comment": "Rules v2.1: one open experiment position; max premium = risk_cap_pct of fund_value (stepdown_cap_pct while fund_value < stepdown_below_fund); 60-180 DTE; |delta| 0.35-0.55; stop -50% / target +100% / time stop at half the DTE at entry; Quantfolio index verdict required (Buy/Buy on weakness for calls).",
+    "types": [
+      "C",
+      "P"
+    ],
+    "min_dte": 60,
+    "max_dte": 180,
+    "min_premium": 0.3,
+    "risk_cap_pct": 25,
+    "stepdown_below_fund": 700,
+    "stepdown_cap_pct": 15,
     "min_oi": 300,
     "max_spread_pct": 10,
-    "min_abs_delta": 0.25,
-    "max_abs_delta": 0.45,
+    "min_abs_delta": 0.35,
+    "max_abs_delta": 0.55,
     "max_rows": 30
   }
 }

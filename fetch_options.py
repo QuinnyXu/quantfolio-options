@@ -176,6 +176,34 @@ def enrich(rows, spot, today):
 # --------------------------------------------------------------------------- #
 # Outputs
 # --------------------------------------------------------------------------- #
+_EARN_CACHE = {}
+
+def earnings_date(sym):
+    """Next earnings date (ISO) via yfinance calendar; '' on any failure. Never raises."""
+    if sym in _EARN_CACHE:
+        return _EARN_CACHE[sym]
+    val = ""
+    try:
+        import yfinance as yf
+        cal = yf.Ticker(sym).calendar
+        ed = None
+        if isinstance(cal, dict):
+            ed = cal.get("Earnings Date")
+        elif cal is not None and hasattr(cal, "loc") and "Earnings Date" in getattr(cal, "index", []):
+            ed = cal.loc["Earnings Date"]
+        if ed is not None:
+            if hasattr(ed, "__iter__") and not isinstance(ed, str):
+                ed = list(ed)[0] if len(list(ed)) else None
+            if ed is not None:
+                val = str(ed)[:10]
+    except Exception:  # noqa: BLE001
+        val = ""
+    _EARN_CACHE[sym] = val
+    return val
+
+def earnings_in_window(ed, expiry):
+    return bool(ed) and ed <= str(expiry)
+
 CHAIN_COLS = ["contract", "ticker", "expiry", "dte", "type", "strike", "moneyness_pct", "spot",
               "bid", "ask", "mid", "last", "spread_pct", "iv", "delta", "gamma", "theta", "vega",
               "theo", "prob_itm", "volume", "oi"]
@@ -220,6 +248,8 @@ def build_marks(positions, chains, today, run_ts):
         row.update({k: m.get(k) for k in ("spot", "dte", "bid", "ask", "mid", "last", "spread_pct", "iv",
                                             "delta", "gamma", "theta", "vega", "theo", "prob_itm", "volume", "oi",
                                             "moneyness_pct")})
+        row["earnings_date"] = earnings_date(root)
+        row["earnings_in_window"] = earnings_in_window(row["earnings_date"], exp.isoformat())
         try:
             qty, cost, mid = float(pos.get("qty") or 1), float(pos["cost"]), float(m["mid"])
             row["pnl_per_contract"] = round(mid - cost, 2)
@@ -243,10 +273,22 @@ def build_marks(positions, chains, today, run_ts):
 MARK_COLS = ["asof", "contract", "ticker", "expiry", "dte", "type", "strike", "qty", "cost", "opened", "spot",
              "moneyness_pct", "bid", "ask", "mid", "last", "spread_pct", "pnl_per_contract", "pnl_pct", "pnl_total",
              "breakeven", "breakeven_move_pct", "iv", "delta", "gamma", "theta", "vega", "theo", "prob_itm",
-             "volume", "oi", "stop", "target", "time_stop", "flags", "note", "error"]
+             "volume", "oi", "earnings_date", "earnings_in_window", "stop", "target", "time_stop", "flags", "note", "error"]
+
+def active_cap(cfg):
+    """Return (fund_value, cap_pct, max_premium per share) under rules v2.1."""
+    s = cfg["screen"]
+    fund = float(cfg.get("fund_value") or cfg.get("account_size") or 0)
+    cap_pct = float(s.get("risk_cap_pct", 25))
+    if fund and fund < float(s.get("stepdown_below_fund", 0) or 0):
+        cap_pct = float(s.get("stepdown_cap_pct", cap_pct))
+    max_prem = round(fund * cap_pct / 100 / 100, 2) if fund else float(s.get("max_premium", 1e9))
+    return fund, cap_pct, max_prem
 
 def build_screen(cfg, chains):
     s = cfg["screen"]
+    fund, cap_pct, max_premium = active_cap(cfg)
+    pool = set(t.upper() for t in cfg.get("pool", []))
     out = []
     for tkr, (spot, rows) in chains.items():
         if not spot or spot > s.get("max_underlying_price", 1e9):
@@ -256,7 +298,7 @@ def build_screen(cfg, chains):
                 continue
             if not (s["min_dte"] <= o["dte"] <= s["max_dte"]):
                 continue
-            if o["mid"] is None or o["mid"] > s["max_premium"] or o["mid"] < s["min_premium"]:
+            if o["mid"] is None or o["mid"] > max_premium or o["mid"] < s["min_premium"]:
                 continue
             if (o.get("oi") or 0) < s["min_oi"]:
                 continue
@@ -267,18 +309,18 @@ def build_screen(cfg, chains):
                 continue
             o2 = dict(o)
             o2["max_loss"] = round(o["mid"] * 100, 2)
-            acct = float(cfg.get("account_size", 0) or 0)
-            o2["risk_pct_of_account"] = round(o2["max_loss"] / acct * 100, 1) if acct else None
-            if acct and o2["risk_pct_of_account"] > s.get("max_risk_pct_of_account", 100):
-                continue
-            o2["in_pool"] = "Y" if tkr in set(t.upper() for t in cfg.get("pool", [])) else ""
+            o2["risk_pct_of_account"] = round(o2["max_loss"] / fund * 100, 1) if fund else None
+            o2["in_pool"] = "Y" if tkr in pool else ""
+            o2["earnings_date"] = earnings_date(tkr)
+            o2["earnings_in_window"] = earnings_in_window(o2["earnings_date"], o["expiry"])
             o2["score"] = round(d * 100 - (o["spread_pct"] or 0), 1)
             out.append(o2)
     out.sort(key=lambda r: (-r["score"], r["spread_pct"] or 99))
     return out[: s["max_rows"]]
 
 SCREEN_COLS = ["ticker", "in_pool", "contract", "expiry", "dte", "type", "strike", "moneyness_pct", "spot", "bid", "ask", "mid",
-               "max_loss", "risk_pct_of_account", "spread_pct", "iv", "delta", "theta", "prob_itm", "volume", "oi", "score"]
+               "max_loss", "risk_pct_of_account", "spread_pct", "iv", "delta", "theta", "prob_itm", "volume", "oi",
+               "earnings_date", "earnings_in_window", "score"]
 
 # --------------------------------------------------------------------------- #
 def _f(x):
@@ -330,8 +372,9 @@ def main():
 
     write_csv(ROOT / "screen.csv", build_screen(cfg, chains), SCREEN_COLS)
 
-    status = dict(asof=run_ts, date=today.isoformat(), tickers=sorted(tickers), sources=sources,
-                  spots={t: chains[t][0] for t in chains}, errors=errors)
+    fund, cap_pct, max_premium = active_cap(cfg)
+    status = dict(asof=run_ts, date=today.isoformat(), fund_value=fund, cap_pct=cap_pct, max_premium=max_premium,
+                  tickers=sorted(tickers), sources=sources, spots={t: chains[t][0] for t in chains}, errors=errors)
     (ROOT / "status.json").write_text(json.dumps(status, indent=2))
     print(json.dumps(status, indent=2))
     if not chains:
