@@ -1,7 +1,7 @@
 # Options experiment — handover (rules v2.1, 2026-09-22)
 
 ## Setup
-- Account: Robinhood, Level 2 (long calls/puts only; no spreads).
+- Account: Robinhood, Level 2. Experiment trades are long calls only; no puts (we don't use this fund to bet against good firms), no spreads.
 - Experiment fund: $1,000 (`fund_value` in `config.json`, updated after every closed trade).
 - Max premium per trade: 25% of `fund_value` ($250 today). If `fund_value` drops below $700 the cap steps down to 15% until it recovers. The premium is the max loss.
 - One open experiment position at a time. Skipping a setup while in a trade is intended ("there will be another one").
@@ -17,7 +17,7 @@ Source: CBOE delayed quotes (15 min), yfinance fallback. Greeks from CBOE or Bla
 Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`):
 - `marks.csv` — each open position: mid, Greeks, P&L, break-even, `earnings_date`, flags `STOP_HIT` / `TARGET_HIT` / `TIME_STOP`
 - `marks_history.csv` — the same, appended every run
-- `screen.csv` — long-option candidates: 60–180 DTE, premium $0.30 to the active cap, OI ≥300, spread ≤10%, |delta| 0.35–0.55; `in_pool=Y` marks Quinny's names; `earnings_in_window` says whether earnings fall before expiry
+- `screen.csv` — long-call candidates: 60–180 DTE, premium $0.30 to the active cap, OI ≥300, spread ≤10%, |delta| 0.35–0.55; `in_pool=Y` marks Quinny's names; `earnings_in_window` says whether earnings fall before expiry
 - `snapshots/<date>/<TICKER>.csv` — trimmed chain history
 - `journal.csv`, `positions.csv`, `config.json`, `status.json` (run time, sources, active cap, errors)
 
@@ -33,7 +33,7 @@ Note: most pool names price beyond the cap at these deltas; the reachable set is
 
 ## Rules (fixed until graduation)
 - Sizing: 25% of fund per trade (15% below $700), one open experiment position, one contract, limit at mid.
-- Overlay gate: the ticker must have a `Quantfolio_Index.csv` row whose verdict is Buy / Buy on weakness (for calls) or Sell / Trim (for puts). No row → not tradable until scored ("quantfolio <ticker>").
+- Overlay gate: the ticker must have a `Quantfolio_Index.csv` row whose verdict is Buy / Buy on weakness. Calls only; Trim/Exit names are simply not traded. No row or a v1 row → not tradable until scored ("quantfolio <ticker>").
 - Earnings inside the window must be named in the thesis; it is allowed, not hidden.
 - Exits are mechanical: stop −50%, target +100%, time stop at half the DTE at entry.
 - VST 160C: stop 4.30, target 13.00, time stop 2026-12-01; decide before Q3 earnings (early Nov) whether to hold through.

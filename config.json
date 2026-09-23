@@ -57,10 +57,9 @@
     "strike_band_pct": 25
   },
   "screen": {
-    "comment": "Rules v2.1: one open experiment position; max premium = risk_cap_pct of fund_value (stepdown_cap_pct while fund_value < stepdown_below_fund); 60-180 DTE; |delta| 0.35-0.55; stop -50% / target +100% / time stop at half the DTE at entry; Quantfolio index verdict required (Buy/Buy on weakness for calls).",
+    "comment": "Rules v2.1: one open experiment position; max premium = risk_cap_pct of fund_value (stepdown_cap_pct while fund_value < stepdown_below_fund); 60-180 DTE; |delta| 0.35-0.55; stop -50% / target +100% / time stop at half the DTE at entry; calls only (no puts on good firms); Quantfolio index verdict Buy/Buy on weakness required.",
     "types": [
-      "C",
-      "P"
+      "C"
     ],
     "min_dte": 60,
     "max_dte": 180,

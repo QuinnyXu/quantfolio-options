@@ -32,7 +32,7 @@ Weekdays 13:50, 16:05 and 20:25 UTC (≈9:50 am, 12:05 pm, 4:25 pm EDT; one hour
 ## Rules (v2.1)
 - Experiment fund: $1,000 (`fund_value` in `config.json`). Max premium per trade 25% of the fund; 15% while the fund is below $700. The premium is the max loss.
 - One open experiment position at a time, one contract, limit orders only. The VST 160C is tracked separately, not counted.
-- Screen: 60–180 DTE, |delta| 0.35–0.55, OI ≥ 300, spread ≤ 10%. Exits: stop −50%, target +100%, time stop at half the DTE at entry.
+- Screen: calls only, 60–180 DTE, delta 0.35–0.55, OI ≥ 300, spread ≤ 10%. Exits: stop −50%, target +100%, time stop at half the DTE at entry.
 - A pick also needs a Buy / Buy-on-weakness verdict in the Quantfolio index (kept outside this repo).
 - Pool names above ~$150 price beyond the cap at these deltas, so the screen mostly covers the watchlist plus UBER/NYT. `earnings_in_window` flags contracts whose expiry is after the next earnings date.
 - Full rules and routine: `options_experiment_handover.md`.
