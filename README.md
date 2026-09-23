@@ -6,7 +6,7 @@ End-of-day option data + trade journal for the small-account experiment. Runs on
 | File | Purpose |
 |---|---|
 | `positions.csv` | Contracts to mark every run (OCC symbol, cost, stop/target/time-stop). Set `status=closed` to stop tracking. |
-| `config.json` | Watchlist for snapshots + screen filter thresholds. |
+| `config.json` | Pool for snapshots (rebuilt from the private Quantfolio index by `tools/build_pool.py`: score ≥ 20, no forensic KILL) + screen filter thresholds. |
 | `marks.csv` | Latest mark, Greeks, P&L and rule flags (`STOP_HIT`, `TARGET_HIT`, `TIME_STOP`) per open position. |
 | `marks_history.csv` | Same, appended every run (theta bleed over time). |
 | `screen.csv` | Long-option candidates passing the v2.1 filter (60–180 DTE, premium ≤ cap, delta 0.35–0.55), best first, with earnings date. |

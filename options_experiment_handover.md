@@ -21,8 +21,8 @@ Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-opt
 - `snapshots/<date>/<TICKER>.csv` — trimmed chain history
 - `journal.csv`, `positions.csv`, `config.json`, `status.json` (run time, sources, active cap, errors)
 
-Pool: SYK, NOW, NVDA, ADSK, AVGO, VST, AMZN, ISRG, GOOGL, UBER, VEEV, NYT. Watchlist: T, F, SOFI, PFE, NIO, RIVN, SNAP, CCL, KVUE.
-Note: pool names above ~$150 price beyond the cap at these deltas; in practice the screen covers the watchlist plus the cheaper pool names (UBER, NYT) on longer dates.
+Pool: every company in `Quantfolio_Index.csv` with score ≥ 20 and no forensic KILL (47 names on 2026-09-22), rebuilt with `python tools/build_pool.py` after any index change. Watchlist is empty; no speculative names.
+Note: most pool names price beyond the cap at these deltas; the reachable set is roughly the sub-$130 names (UBER, NYT, T, KO, SO, EW, NEE, AEP, TJX, BSY, NFLX, CSCO). NOW, ADSK, NVDA and the other large names are share-only at this fund size.
 
 ## Daily routine
 1. Evening (after 4:25 pm run): in Cowork, ask "screen?" → Claude reads `screen.csv` + `marks.csv`, applies the Quantfolio overlay, returns ONE pick or "no trade" with entry (limit at mid), stop (−50%), target (+100%), time stop (half the DTE at entry). Most evenings the answer is "no trade".
