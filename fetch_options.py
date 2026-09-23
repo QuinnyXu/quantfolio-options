@@ -105,6 +105,9 @@ def fetch_cboe(sym):
         raise RuntimeError("CBOE returned no options")
     return spot, rows, "cboe"
 
+YF_DTE_WINDOW = (14, 220)   # only pull expiries in this DTE range (snapshot band) to limit requests
+YF_KEEP_EXPIRIES = set()    # extra expiries (open positions) always pulled
+
 def fetch_yf(sym):
     import yfinance as yf  # imported lazily so CBOE-only runs stay light
     t = yf.Ticker(sym)
@@ -118,7 +121,11 @@ def fetch_yf(sym):
     if not spot:
         raise RuntimeError("yfinance: no spot")
     rows = []
-    for exp_str in t.options:
+    today = date.today()
+    for exp_str in (t.options or []):
+        dte = (datetime.strptime(exp_str, "%Y-%m-%d").date() - today).days
+        if not (YF_DTE_WINDOW[0] <= dte <= YF_DTE_WINDOW[1]) and exp_str not in YF_KEEP_EXPIRIES:
+            continue
         try:
             ch = t.option_chain(exp_str)
         except Exception:
@@ -136,10 +143,14 @@ def fetch_yf(sym):
                 ))
     if not rows:
         raise RuntimeError("yfinance returned no options")
+    QUOTE_TS[sym.upper()] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") + " (yf, ~15m delayed)"
     return spot, rows, "yfinance"
 
-def fetch_chain(sym, errors):
-    for fn in (fetch_cboe, fetch_yf):
+def fetch_chain(sym, errors, prefer_live=False):
+    """CBOE's free JSON is an overnight snapshot (stale intraday). Tickers that can become a
+    trade (open positions + overlay list) are fetched live-first via yfinance; the rest use CBOE."""
+    order = (fetch_yf, fetch_cboe) if prefer_live else (fetch_cboe, fetch_yf)
+    for fn in order:
         try:
             return fn(sym)
         except Exception as e:  # noqa: BLE001
@@ -350,11 +361,13 @@ def main():
     positions = read_positions()
     tickers = {parse_occ(p["contract"])[0] for p in positions}
     tickers |= {t.strip().upper() for t in cfg.get("watchlist", []) + cfg.get("pool", []) if t.strip()}
+    live = {parse_occ(p["contract"])[0] for p in positions} | {t.strip().upper() for t in cfg.get("overlay", [])}
+    YF_KEEP_EXPIRIES.update(parse_occ(p["contract"])[1].isoformat() for p in positions)
 
     errors, chains, sources = [], {}, {}
     snap = cfg["snapshot"]
     for tkr in sorted(tickers):
-        spot, rows, src = fetch_chain(tkr, errors)
+        spot, rows, src = fetch_chain(tkr, errors, prefer_live=tkr in live)
         if not rows:
             continue
         rows = enrich(rows, spot, today)

@@ -12,7 +12,7 @@
 
 ## Automation (GitHub Actions, no manual steps)
 Runs weekdays 9:50 am, 12:05 pm, 4:25 pm ET (cron in UTC; shifts +1h after Nov 1 — adjust then). Also runs on any push to `config.json`, `positions.csv`, `fetch_options.py`, or the workflow.
-Source: CBOE delayed quotes (15 min), yfinance fallback. Greeks from CBOE or Black-Scholes. Earnings dates from yfinance (blank if unavailable).
+Source: yfinance (~15 min delayed) for open positions and overlay names, since CBOE's free JSON is an overnight snapshot; CBOE for the rest of the pool (snapshots only), yfinance as fallback either way. `status.json` → `quote_times` shows each ticker's quote timestamp and `sources` shows which feed was used. Greeks from CBOE or Black-Scholes. Earnings dates from yfinance (blank if unavailable).
 
 Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`):
 - `marks.csv` — each open position: mid, Greeks, P&L, break-even, `earnings_date`, flags `STOP_HIT` / `TARGET_HIT` / `TIME_STOP`

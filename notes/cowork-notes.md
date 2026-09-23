@@ -19,5 +19,9 @@ Source of truth: `options_experiment_handover.md` in `C:\Users\xkxuq\Documents\S
 ## Routine (ET)
 Evening after ~4:45 pm: "screen?" → one pick or no trade. Morning 9:50–10:30: place limit, then "log trade: …". ~12:20 pm: check marks, exit on flag, "log exit: …". 4:25 run flags → exit next morning. DST: shift cron −1h around Oct 30. Optional: scheduled task for a 5 pm ET automatic screen (offered, not set up).
 
+## Data feeds (2026-09-23)
+- CBOE free JSON = overnight snapshot (quote_times showed 01:00-03:00 UTC stamps; VST mark unchanged across 6 runs). Fix: positions + overlay tickers fetch yfinance-first (expiries limited to 14-220 DTE + position expiries); others CBOE. Verify `sources` and `quote_times` in status.json after the push; if yfinance is throttled on Actions, errors[] will show it.
+- GitHub cron confirmed firing (late): 12:05 slot ran 13:59 ET, 16:05→15:38? (bot commits 17:59Z, 19:38Z). Leave crons as is.
+
 ## Pending
 - 2026-09-23: overlay column (build_pool.py, fetch_options.py, config, handover, README, these notes) edited in folder; push line handed to Quinny, who is away from the laptop.
