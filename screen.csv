@@ -1,2 +1,2 @@
 ticker,in_pool,contract,expiry,dte,type,strike,moneyness_pct,spot,bid,ask,mid,max_loss,risk_pct_of_account,spread_pct,iv,delta,theta,prob_itm,volume,oi,earnings_date,earnings_in_window,score
-KO,Y,KO261218C00092500,2026-12-18,86,C,92.5,4.39,88.61,1.96,2.15,2.055,205.5,20.5,9.2,0.1993,0.3702,-0.0184,34.6,4754,3951,2026-10-20,True,27.8
+KO,Y,KO261218C00092500,2026-12-18,86,C,92.5,4.38,88.6144,1.96,2.15,2.055,205.5,20.5,9.2,0.1993,0.3702,-0.0184,34.7,4754,3951,2026-10-20,True,27.8
