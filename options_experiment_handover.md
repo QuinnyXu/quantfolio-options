@@ -17,7 +17,7 @@ Source: CBOE delayed quotes (15 min), yfinance fallback. Greeks from CBOE or Bla
 Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`):
 - `marks.csv` — each open position: mid, Greeks, P&L, break-even, `earnings_date`, flags `STOP_HIT` / `TARGET_HIT` / `TIME_STOP`
 - `marks_history.csv` — the same, appended every run
-- `screen.csv` — long-call candidates: 60–180 DTE, premium $0.30 to the active cap, OI ≥300, spread ≤10%, |delta| 0.35–0.55; `in_pool=Y` marks Quinny's names; `earnings_in_window` says whether earnings fall before expiry
+- `screen.csv` — long-call candidates: 60–180 DTE, premium $0.30 to the active cap, OI ≥300, spread ≤10%, |delta| 0.35–0.55; `overlay=Y` marks rows that also pass the Quantfolio verdict gate (Buy / Buy on weakness), i.e. every rule met; these sort first. `earnings_in_window` says whether earnings fall before expiry
 - `snapshots/<date>/<TICKER>.csv` — trimmed chain history
 - `journal.csv`, `positions.csv`, `config.json`, `status.json` (run time, sources, active cap, errors)
 

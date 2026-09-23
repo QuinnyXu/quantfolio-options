@@ -1,4 +1,4 @@
-# Options experiment — Cowork working notes (updated 2026-09-22 late)
+# Options experiment — Cowork working notes (updated 2026-09-23)
 
 Mirrored from the Claude Project doc `claude/options-experiment-notes.md` (Quinny's request). On every push, Claude rewrites this file from that doc so both stay identical. Human-facing rulebook: `../options_experiment_handover.md`.
 
@@ -13,11 +13,11 @@ Source of truth: `options_experiment_handover.md` in `C:\Users\xkxuq\Documents\S
 - VST 160C Jan-2027 (8.65) = Trade 0, outside experiment, does NOT block experiment trades; stop 4.30 / target 13.00 / time stop 2026-12-01.
 
 ## Universe (live since 2026-09-23 01:17Z)
-- Pool = every Quantfolio_Index.csv row with score ≥ 20 and forensic_severity ≠ KILL → 47 tickers. Rebuild with `python tools/build_pool.py` (reads the Tracker CSV, writes only config.json) after any index change. Watchlist empty.
+- Pool = every Quantfolio_Index.csv row with score ≥ 20 and forensic_severity ≠ KILL → 47 tickers. Overlay = pool members whose verdict starts with Buy → 12 (ADSK AMZN AVGO GOOGL INTU NOW NVDA NYT PTC UBER VEEV VST on 2026-09-23). Both lists rebuilt with `python tools/build_pool.py` (reads the Tracker CSV, writes only config.json) after any index change. screen.csv has an `overlay` column; overlay=Y rows meet every rule and sort first. Watchlist empty.
 - First run on the new pool: 47 tickers, no errors, screen = 1 row (KO Dec 92.5C, Trim → ineligible) ⇒ "no trade". Reachable under $250 at these deltas: sub-$130 names (NYT, T, KO, SO, EW, NEE, AEP, TJX, BSY, NFLX, CSCO; UBER ~$330). Big names are share-only. Expect "no trade" most evenings.
 
 ## Routine (ET)
 Evening after ~4:45 pm: "screen?" → one pick or no trade. Morning 9:50–10:30: place limit, then "log trade: …". ~12:20 pm: check marks, exit on flag, "log exit: …". 4:25 run flags → exit next morning. DST: shift cron −1h around Oct 30. Optional: scheduled task for a 5 pm ET automatic screen (offered, not set up).
 
 ## Pending
-- `notes/cowork-notes.md` added 2026-09-22 late; push line handed to Quinny.
+- 2026-09-23: overlay column (build_pool.py, fetch_options.py, config, handover, README, these notes) edited in folder; push line handed to Quinny, who is away from the laptop.

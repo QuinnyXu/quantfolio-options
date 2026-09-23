@@ -73,5 +73,20 @@
     "max_abs_delta": 0.55,
     "max_rows": 30
   },
-  "pool_rule": "Quantfolio_Index.csv: score >= 20 and forensic_severity != KILL (rebuilt by tools/build_pool.py)"
+  "pool_rule": "Quantfolio_Index.csv: score >= 20 and forensic_severity != KILL (rebuilt by tools/build_pool.py)",
+  "overlay": [
+    "ADSK",
+    "AMZN",
+    "AVGO",
+    "GOOGL",
+    "INTU",
+    "NOW",
+    "NVDA",
+    "NYT",
+    "PTC",
+    "UBER",
+    "VEEV",
+    "VST"
+  ],
+  "overlay_rule": "pool members whose Quantfolio verdict is Buy / Buy on weakness; screen.csv overlay=Y means the row meets every rule"
 }

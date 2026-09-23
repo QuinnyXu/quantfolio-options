@@ -78,11 +78,14 @@ def make_occ(root, exp, cp, strike):
 # --------------------------------------------------------------------------- #
 # Data sources
 # --------------------------------------------------------------------------- #
+QUOTE_TS = {}  # ticker -> quote timestamp reported by the source (to tell stale from live)
+
 def fetch_cboe(sym):
     r = requests.get(CBOE_URL.format(sym=sym.upper()), headers=HEADERS, timeout=30)
     r.raise_for_status()
     js = r.json()
     data = js.get("data", js)
+    QUOTE_TS[sym.upper()] = str(js.get("timestamp") or data.get("timestamp") or "")
     spot = float(data.get("current_price") or data.get("close") or 0)
     rows = []
     for o in data.get("options", []):
@@ -289,6 +292,7 @@ def build_screen(cfg, chains):
     s = cfg["screen"]
     fund, cap_pct, max_premium = active_cap(cfg)
     pool = set(t.upper() for t in cfg.get("pool", []))
+    overlay = set(t.upper() for t in cfg.get("overlay", []))
     out = []
     for tkr, (spot, rows) in chains.items():
         if not spot or spot > s.get("max_underlying_price", 1e9):
@@ -311,14 +315,16 @@ def build_screen(cfg, chains):
             o2["max_loss"] = round(o["mid"] * 100, 2)
             o2["risk_pct_of_account"] = round(o2["max_loss"] / fund * 100, 1) if fund else None
             o2["in_pool"] = "Y" if tkr in pool else ""
+            o2["overlay"] = "Y" if tkr in overlay else ""
             o2["earnings_date"] = earnings_date(tkr)
             o2["earnings_in_window"] = earnings_in_window(o2["earnings_date"], o["expiry"])
             o2["score"] = round(d * 100 - (o["spread_pct"] or 0), 1)
             out.append(o2)
-    out.sort(key=lambda r: (-r["score"], r["spread_pct"] or 99))
+    # overlay=Y rows (every rule met) first, then by score
+    out.sort(key=lambda r: (r["overlay"] != "Y", -r["score"], r["spread_pct"] or 99))
     return out[: s["max_rows"]]
 
-SCREEN_COLS = ["ticker", "in_pool", "contract", "expiry", "dte", "type", "strike", "moneyness_pct", "spot", "bid", "ask", "mid",
+SCREEN_COLS = ["ticker", "overlay", "in_pool", "contract", "expiry", "dte", "type", "strike", "moneyness_pct", "spot", "bid", "ask", "mid",
                "max_loss", "risk_pct_of_account", "spread_pct", "iv", "delta", "theta", "prob_itm", "volume", "oi",
                "earnings_date", "earnings_in_window", "score"]
 
@@ -374,7 +380,8 @@ def main():
 
     fund, cap_pct, max_premium = active_cap(cfg)
     status = dict(asof=run_ts, date=today.isoformat(), fund_value=fund, cap_pct=cap_pct, max_premium=max_premium,
-                  tickers=sorted(tickers), sources=sources, spots={t: chains[t][0] for t in chains}, errors=errors)
+                  tickers=sorted(tickers), sources=sources, spots={t: chains[t][0] for t in chains},
+                  quote_times=QUOTE_TS, errors=errors)
     (ROOT / "status.json").write_text(json.dumps(status, indent=2))
     print(json.dumps(status, indent=2))
     if not chains:
