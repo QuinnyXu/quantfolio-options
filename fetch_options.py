@@ -299,14 +299,23 @@ def active_cap(cfg):
     max_prem = round(fund * cap_pct / 100 / 100, 2) if fund else float(s.get("max_premium", 1e9))
     return fund, cap_pct, max_prem
 
+def overlay_levels(cfg):
+    """{TICKER: add_level or None} from config.overlay (dict) — tolerates the old list form."""
+    ov = cfg.get("overlay", {})
+    if isinstance(ov, list):
+        return {t.upper(): None for t in ov}
+    return {t.upper(): (float(v) if v else None) for t, v in ov.items()}
+
 def build_screen(cfg, chains):
     s = cfg["screen"]
     fund, cap_pct, max_premium = active_cap(cfg)
     pool = set(t.upper() for t in cfg.get("pool", []))
-    overlay = set(t.upper() for t in cfg.get("overlay", []))
+    overlay = overlay_levels(cfg)
     out = []
     for tkr, (spot, rows) in chains.items():
         if not spot or spot > s.get("max_underlying_price", 1e9):
+            continue
+        if tkr not in overlay:      # position-only tickers are marked, not screened
             continue
         for o in rows:
             if o["type"] not in s["types"]:
@@ -326,7 +335,9 @@ def build_screen(cfg, chains):
             o2["max_loss"] = round(o["mid"] * 100, 2)
             o2["risk_pct_of_account"] = round(o2["max_loss"] / fund * 100, 1) if fund else None
             o2["in_pool"] = "Y" if tkr in pool else ""
-            o2["overlay"] = "Y" if tkr in overlay else ""
+            lvl = overlay.get(tkr)
+            o2["add_level"] = lvl
+            o2["overlay"] = "Y" if (lvl and spot <= lvl) else ""
             o2["earnings_date"] = earnings_date(tkr)
             o2["earnings_in_window"] = earnings_in_window(o2["earnings_date"], o["expiry"])
             o2["score"] = round(d * 100 - (o["spread_pct"] or 0), 1)
@@ -335,7 +346,7 @@ def build_screen(cfg, chains):
     out.sort(key=lambda r: (r["overlay"] != "Y", -r["score"], r["spread_pct"] or 99))
     return out[: s["max_rows"]]
 
-SCREEN_COLS = ["ticker", "overlay", "in_pool", "contract", "expiry", "dte", "type", "strike", "moneyness_pct", "spot", "bid", "ask", "mid",
+SCREEN_COLS = ["ticker", "overlay", "add_level", "in_pool", "contract", "expiry", "dte", "type", "strike", "moneyness_pct", "spot", "bid", "ask", "mid",
                "max_loss", "risk_pct_of_account", "spread_pct", "iv", "delta", "theta", "prob_itm", "volume", "oi",
                "earnings_date", "earnings_in_window", "score"]
 
@@ -360,8 +371,10 @@ def main():
     run_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     positions = read_positions()
     tickers = {parse_occ(p["contract"])[0] for p in positions}
-    tickers |= {t.strip().upper() for t in cfg.get("watchlist", []) + cfg.get("pool", []) if t.strip()}
-    live = {parse_occ(p["contract"])[0] for p in positions} | {t.strip().upper() for t in cfg.get("overlay", [])}
+    # Rules v2.1: only names that can become a trade are fetched — open positions + overlay (Buy verdicts).
+    # Trim/Hold pool names are never tradable (calls only), so they are not fetched at all.
+    tickers |= set(overlay_levels(cfg))
+    live = set(tickers)
     YF_KEEP_EXPIRIES.update(parse_occ(p["contract"])[1].isoformat() for p in positions)
 
     errors, chains, sources = [], {}, {}

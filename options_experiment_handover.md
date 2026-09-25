@@ -17,12 +17,12 @@ Source: yfinance (~15 min delayed) for open positions and overlay names, since C
 Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`):
 - `marks.csv` — each open position: mid, Greeks, P&L, break-even, `earnings_date`, flags `STOP_HIT` / `TARGET_HIT` / `TIME_STOP`
 - `marks_history.csv` — the same, appended every run
-- `screen.csv` — long-call candidates: 60–180 DTE, premium $0.30 to the active cap, OI ≥300, spread ≤10%, |delta| 0.35–0.55; `overlay=Y` marks rows that also pass the Quantfolio verdict gate (Buy / Buy on weakness), i.e. every rule met; these sort first. `earnings_in_window` says whether earnings fall before expiry
+- `screen.csv` — long-call candidates on overlay names only: 60–180 DTE, premium $0.30 to the active cap, OI ≥300, spread ≤10%, delta 0.35–0.55. `overlay=Y` means the row meets every rule, including the Quantfolio gate: verdict Buy / Buy on weakness AND spot ≤ `add_level` (shown in the row). Rows without Y are overlay names currently above their add level (near-misses, not tradable); `earnings_in_window` says whether earnings fall before expiry
 - `snapshots/<date>/<TICKER>.csv` — trimmed chain history
 - `journal.csv`, `positions.csv`, `config.json`, `status.json` (run time, sources, active cap, errors)
 
-Pool: every company in `Quantfolio_Index.csv` with score ≥ 20 and no forensic KILL (47 names on 2026-09-22), rebuilt with `python tools/build_pool.py` after any index change. Watchlist is empty; no speculative names.
-Note: most pool names price beyond the cap at these deltas; the reachable set is roughly the sub-$130 names (UBER, NYT, T, KO, SO, EW, NEE, AEP, TJX, BSY, NFLX, CSCO). NOW, ADSK, NVDA and the other large names are share-only at this fund size.
+Universe: `tools/build_pool.py` reads the private `Quantfolio_Index.csv` and writes two ticker lists to `config.json`: `pool` (score ≥ 20, no forensic KILL — reference only) and `overlay` (pool members whose verdict is Buy / Buy on weakness, each with its `add_level`). The run fetches only the overlay names plus open positions; Trim/Hold names are never fetched because they can never be a trade. Re-run the script after any index change.
+Note: most overlay names price beyond the cap at these deltas (NOW, ADSK, NVDA, AVGO, GOOGL, AMZN, VEEV, INTU are share-only at this fund size); in practice UBER, NYT, PTC and VST are the ones that can fit.
 
 ## Daily routine
 1. Evening (after 4:25 pm run): in Cowork, ask "screen?" → Claude reads `screen.csv` + `marks.csv`, applies the Quantfolio overlay, returns ONE pick or "no trade" with entry (limit at mid), stop (−50%), target (+100%), time stop (half the DTE at entry). Most evenings the answer is "no trade".
@@ -33,7 +33,7 @@ Note: most pool names price beyond the cap at these deltas; the reachable set is
 
 ## Rules (fixed until graduation)
 - Sizing: 25% of fund per trade (15% below $700), one open experiment position, one contract, limit at mid.
-- Overlay gate: the ticker must have a `Quantfolio_Index.csv` row whose verdict is Buy / Buy on weakness. Calls only; Trim/Exit names are simply not traded. No row or a v1 row → not tradable until scored ("quantfolio <ticker>").
+- Overlay gate: the ticker's `Quantfolio_Index.csv` verdict is Buy / Buy on weakness AND the current price is at or below its `add_level` (the framework's own definition of "weakness"). Calls only; Trim/Exit/Hold names are not traded. No row, a v1 row, or no add level → not tradable until scored ("quantfolio <ticker>").
 - Earnings inside the window must be named in the thesis; it is allowed, not hidden.
 - Exits are mechanical: stop −50%, target +100%, time stop at half the DTE at entry.
 - VST 160C: stop 4.30, target 13.00, time stop 2026-12-01; decide before Q3 earnings (early Nov) whether to hold through.
