@@ -12,6 +12,7 @@
     "BWXT",
     "CB",
     "CEG",
+    "COST",
     "CRWD",
     "CSCO",
     "DASH",
@@ -75,7 +76,7 @@
   },
   "pool_rule": "Quantfolio_Index.csv: score >= 20 and forensic_severity != KILL (rebuilt by tools/build_pool.py)",
   "overlay": {
-    "ADSK": 268.0,
+    "ADSK": 225.0,
     "AMZN": 243.0,
     "AVGO": 357.0,
     "GOOGL": 280.0,
