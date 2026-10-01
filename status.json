@@ -1,5 +1,5 @@
 {
-  "asof": "2026-10-01T00:00:52Z",
+  "asof": "2026-10-01T00:06:12Z",
   "date": "2026-10-01",
   "fund_value": 1000.0,
   "cap_pct": 25.0,
@@ -14,6 +14,7 @@
     "NVDA",
     "NYT",
     "PTC",
+    "TLT",
     "UBER",
     "VEEV",
     "VST"
@@ -28,6 +29,7 @@
     "NVDA": "yfinance",
     "NYT": "yfinance",
     "PTC": "yfinance",
+    "TLT": "yfinance",
     "UBER": "yfinance",
     "VEEV": "yfinance",
     "VST": "yfinance"
@@ -42,23 +44,25 @@
     "NVDA": 228.38,
     "NYT": 63.7,
     "PTC": 140.3,
+    "TLT": 77.78,
     "UBER": 68.51,
     "VEEV": 285.45,
     "VST": 138.35
   },
   "quote_times": {
-    "ADSK": "2026-10-01 00:00:54 (yf, ~15m delayed)",
-    "AMZN": "2026-10-01 00:00:55 (yf, ~15m delayed)",
-    "AVGO": "2026-10-01 00:00:57 (yf, ~15m delayed)",
-    "GOOGL": "2026-10-01 00:00:58 (yf, ~15m delayed)",
-    "INTU": "2026-10-01 00:00:59 (yf, ~15m delayed)",
-    "NOW": "2026-10-01 00:01:00 (yf, ~15m delayed)",
-    "NVDA": "2026-10-01 00:01:02 (yf, ~15m delayed)",
-    "NYT": "2026-10-01 00:01:03 (yf, ~15m delayed)",
-    "PTC": "2026-10-01 00:01:03 (yf, ~15m delayed)",
-    "UBER": "2026-10-01 00:01:04 (yf, ~15m delayed)",
-    "VEEV": "2026-10-01 00:01:05 (yf, ~15m delayed)",
-    "VST": "2026-10-01 00:01:06 (yf, ~15m delayed)"
+    "ADSK": "2026-10-01 00:06:14 (yf, ~15m delayed)",
+    "AMZN": "2026-10-01 00:06:15 (yf, ~15m delayed)",
+    "AVGO": "2026-10-01 00:06:17 (yf, ~15m delayed)",
+    "GOOGL": "2026-10-01 00:06:19 (yf, ~15m delayed)",
+    "INTU": "2026-10-01 00:06:20 (yf, ~15m delayed)",
+    "NOW": "2026-10-01 00:06:22 (yf, ~15m delayed)",
+    "NVDA": "2026-10-01 00:06:23 (yf, ~15m delayed)",
+    "NYT": "2026-10-01 00:06:24 (yf, ~15m delayed)",
+    "PTC": "2026-10-01 00:06:25 (yf, ~15m delayed)",
+    "TLT": "2026-10-01 00:06:26 (yf, ~15m delayed)",
+    "UBER": "2026-10-01 00:06:27 (yf, ~15m delayed)",
+    "VEEV": "2026-10-01 00:06:28 (yf, ~15m delayed)",
+    "VST": "2026-10-01 00:06:29 (yf, ~15m delayed)"
   },
   "errors": []
 }
