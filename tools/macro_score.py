@@ -43,9 +43,9 @@ def fred(sid):
     """FRED public series; csv endpoint with retries, then the plain-text endpoint as fallback."""
     import time
     last = None
-    for url in (FRED.format(sid=sid), FRED.format(sid=sid), FRED_TXT.format(sid=sid)):
+    for url in (FRED.format(sid=sid), FRED_TXT.format(sid=sid)):
         try:
-            r = requests.get(url, headers=HEADERS, timeout=(10, 60))
+            r = requests.get(url, headers=HEADERS, timeout=(8, 20))
             r.raise_for_status()
             out = _parse_pairs(r.text.splitlines())
             if out:
@@ -55,6 +55,78 @@ def fred(sid):
             last = e
             time.sleep(3)
     raise RuntimeError(f"FRED {sid}: {type(last).__name__}: {str(last)[:80]}")
+
+# ---------------------------------------------------------------------------
+# Fallback sources (GitHub runners time out on FRED, 2026-10-01): Yahoo ^TYX for the 30-yr yield,
+# the Treasury's daily par-yield CSV for the 2-yr, and the BLS public API (no key) for core CPI
+# (stand-in for core PCE, same thresholds; runs ~0.3-0.5 pt hotter) and the unemployment rate.
+# ---------------------------------------------------------------------------
+TREASURY = ("https://home.treasury.gov/resource-center/data-chart-center/interest-rates/"
+            "daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}")
+BLS = "https://api.bls.gov/publicAPI/v1/timeseries/data/{sid}"
+
+def yahoo_yield(sym="^TYX", years=16):
+    import yfinance as yf
+    h = yf.Ticker(sym).history(period=f"{years}y", auto_adjust=False)
+    out = [(d.date(), float(c)) for d, c in zip(h.index, h["Close"]) if not math.isnan(float(c))]
+    if len(out) < 500:
+        raise RuntimeError(f"yahoo {sym}: only {len(out)} rows")
+    return out
+
+def treasury_yield(col="2 Yr", years=(None, None)):
+    """Daily par yields from home.treasury.gov for the current and previous calendar year."""
+    out = []
+    y = date.today().year
+    for yr in (y - 1, y):
+        r = requests.get(TREASURY.format(year=yr), headers=HEADERS, timeout=(10, 60))
+        r.raise_for_status()
+        rows = list(csv.reader(r.text.splitlines()))
+        hdr = rows[0]; di = hdr.index("Date"); ci = hdr.index(col)
+        for row in rows[1:]:
+            try:
+                out.append((datetime.strptime(row[di], "%m/%d/%Y").date(), float(row[ci])))
+            except (ValueError, IndexError):
+                continue
+    out.sort()
+    if len(out) < 100:
+        raise RuntimeError(f"treasury {col}: only {len(out)} rows")
+    return out
+
+def bls(sid):
+    """BLS public API v1 (no key, last ~3 years, monthly). Returns [(date, value)] ascending."""
+    r = requests.get(BLS.format(sid=sid), headers=HEADERS, timeout=(10, 60))
+    r.raise_for_status()
+    js = r.json()
+    series = js.get("Results", {}).get("series", [])
+    if not series:
+        raise RuntimeError(f"BLS {sid}: {js.get('message')}")
+    out = []
+    for o in series[0]["data"]:
+        if not o["period"].startswith("M"):
+            continue
+        out.append((date(int(o["year"]), int(o["period"][1:]), 1), float(o["value"])))
+    out.sort()
+    if len(out) < 6:
+        raise RuntimeError(f"BLS {sid}: only {len(out)} rows")
+    return out
+
+def series(name):
+    """Primary FRED, then the fallback for that series. Returns (data, source_label)."""
+    try:
+        return fred(name), "FRED " + name
+    except Exception as e1:  # noqa: BLE001
+        try:
+            if name == "DGS30":
+                return yahoo_yield("^TYX"), "Yahoo ^TYX"
+            if name == "DGS2":
+                return treasury_yield("2 Yr"), "Treasury 2 Yr"
+            if name == "PCEPILFE":
+                return bls("CUSR0000SA0L1E"), "BLS core CPI (stand-in for core PCE)"
+            if name == "UNRATE":
+                return bls("LNS14000000"), "BLS UNRATE"
+        except Exception as e2:  # noqa: BLE001
+            raise RuntimeError(f"{name}: FRED {type(e1).__name__}; fallback {type(e2).__name__}: {str(e2)[:60]}")
+        raise e1
 
 def percentile_rank(series_vals, x):
     n = len(series_vals)
@@ -74,30 +146,30 @@ def score_tlt(rules):
     b1 = b2 = b3 = b4 = None   # bear side (puts)
     # T1 value anchor
     try:
-        s = fred("DGS30"); cutoff = s[-1][0] - timedelta(days=365 * rules.get("value_window_years", 15))
+        s, src = series("DGS30"); cutoff = s[-1][0] - timedelta(days=365 * rules.get("value_window_years", 15))
         win = [v for d, v in s if d >= cutoff]; last = s[-1][1]
         pct = percentile_rank(win, last)
-        inp.update(dgs30=last, dgs30_date=s[-1][0].isoformat(), dgs30_pct=round(pct, 1))
+        inp.update(dgs30=last, dgs30_date=s[-1][0].isoformat(), dgs30_pct=round(pct, 1), dgs30_src=src)
         t1 = 2 if pct >= 90 else 1 if pct >= 75 else 0
         b1 = 2 if pct <= 10 else 1 if pct <= 25 else 0
     except Exception as e:  # noqa: BLE001
         err.append(f"T1:{e}")
     # T2 regime
     try:
-        s = fred("DGS2"); last = s[-1][1]; prev = s[-64][1] if len(s) > 64 else s[0][1]
+        s, src = series("DGS2"); last = s[-1][1]; prev = s[-64][1] if len(s) > 64 else s[0][1]
         chg = (last - prev) * 100  # bp
-        inp.update(dgs2=last, dgs2_chg_63d_bp=round(chg, 0))
+        inp.update(dgs2=last, dgs2_chg_63d_bp=round(chg, 0), dgs2_src=src)
         t2 = 2 if chg <= -25 else 1 if chg <= 10 else 0
         b2 = 2 if chg >= 25 else 1 if chg >= -10 else 0
     except Exception as e:  # noqa: BLE001
         err.append(f"T2:{e}")
     # T3 impulse
     try:
-        p = fred("PCEPILFE"); l = p[-1][1]; l3 = p[-4][1]
+        p, psrc = series("PCEPILFE"); l = p[-1][1]; l3 = p[-4][1]
         pce3 = ((l / l3) ** 4 - 1) * 100
-        u = fred("UNRATE"); uchg = u[-1][1] - u[-4][1]
-        inp.update(core_pce_3m_ann=round(pce3, 2), core_pce_date=p[-1][0].isoformat(),
-                   unrate=u[-1][1], unrate_chg_3m=round(uchg, 1))
+        u, usrc = series("UNRATE"); uchg = u[-1][1] - u[-4][1]
+        inp.update(core_pce_3m_ann=round(pce3, 2), core_pce_date=p[-1][0].isoformat(), infl_src=psrc,
+                   unrate=u[-1][1], unrate_chg_3m=round(uchg, 1), unrate_src=usrc)
         t3 = (1 if pce3 <= 3.0 else 0) + (1 if uchg >= 0.3 else 0)
         b3 = (1 if pce3 >= 3.5 else 0) + (1 if uchg <= 0.0 else 0)
     except Exception as e:  # noqa: BLE001
@@ -152,7 +224,7 @@ def main():
     cols = ["asof", "ticker", "t1_value", "t2_regime", "t3_impulse", "t4_trend", "total",
             "b1_value", "b2_regime", "b3_impulse", "b4_trend", "bear_total", "verdict", "eligible", "direction",
             "dgs30", "dgs30_date", "dgs30_pct", "dgs2", "dgs2_chg_63d_bp", "core_pce_3m_ann", "core_pce_date",
-            "unrate", "unrate_chg_3m", "tlt_close", "tlt_date", "tlt_ma20", "tlt_ma50", "tlt_prior_20d_high", "tlt_prior_20d_low", "errors"]
+            "unrate", "unrate_chg_3m", "tlt_close", "tlt_date", "tlt_ma20", "tlt_ma50", "tlt_prior_20d_high", "tlt_prior_20d_low", "dgs30_src", "dgs2_src", "infl_src", "unrate_src", "errors"]
     with open(ROOT / "macro_overlay.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore"); w.writeheader()
         for r in rows:
