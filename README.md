@@ -9,6 +9,8 @@ End-of-day option data + trade journal for the small-account experiment. Runs on
 | `config.json` | `overlay` (Buy-verdict names with add levels) and reference `pool`, both rebuilt from the private Quantfolio index by `tools/build_pool.py`; screen filter thresholds. Only overlay names + open positions are fetched. |
 | `marks.csv` | Latest mark, Greeks, P&L and rule flags (`STOP_HIT`, `TARGET_HIT`, `TIME_STOP`) per open position. |
 | `marks_history.csv` | Same, appended every run (theta bleed over time). |
+| `macro_overlay.csv` | Macro overlay v1 scorecard (TLT): 4 tests × 0–2 from FRED + price data, written by `tools/macro_score.py`; history in `macro_overlay_history.csv`. |
+| `screen_macro.csv` | Macro-sleeve candidates (TLT) under the same filters; `overlay=Y` when the scorecard is eligible (≥6/8 with trend ≥1). |
 | `screen.csv` | Long-option candidates passing the v2.1 filter (60–180 DTE, premium ≤ cap, delta 0.35–0.55), overlay=Y rows (Quantfolio verdict Buy / Buy on weakness) first, with earnings date. |
 | `snapshots/<date>/<TICKER>.csv` | Trimmed chain history. |
 | `journal.csv` | Trade journal. Claude drafts rows; Quinny commits. |

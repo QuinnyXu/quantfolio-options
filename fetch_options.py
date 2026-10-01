@@ -306,11 +306,26 @@ def overlay_levels(cfg):
         return {t.upper(): None for t in ov}
     return {t.upper(): (float(v) if v else None) for t, v in ov.items()}
 
-def build_screen(cfg, chains):
+def macro_gate(cfg):
+    """{TICKER: (eligible bool, verdict, total)} from macro_overlay.csv written by tools/macro_score.py."""
+    p = ROOT / "macro_overlay.csv"
+    if not p.exists():
+        return {}
+    out = {}
+    with open(p, newline="") as f:
+        for r in csv.DictReader(f):
+            out[r["ticker"].upper()] = (r.get("eligible") == "Y", r.get("verdict", ""), r.get("total", ""))
+    return out
+
+def build_screen(cfg, chains, universe=None, gate=None, gate_label=None):
+    """universe: {TICKER: level-or-None}; gate(tkr, spot) -> bool decides overlay=Y.
+    Default = equity sleeve: overlay names, spot <= add_level."""
     s = cfg["screen"]
     fund, cap_pct, max_premium = active_cap(cfg)
     pool = set(t.upper() for t in cfg.get("pool", []))
-    overlay = overlay_levels(cfg)
+    overlay = overlay_levels(cfg) if universe is None else universe
+    if gate is None:
+        gate = lambda t, sp: bool(overlay.get(t)) and sp <= overlay[t]
     out = []
     for tkr, (spot, rows) in chains.items():
         if not spot or spot > s.get("max_underlying_price", 1e9):
@@ -336,8 +351,10 @@ def build_screen(cfg, chains):
             o2["risk_pct_of_account"] = round(o2["max_loss"] / fund * 100, 1) if fund else None
             o2["in_pool"] = "Y" if tkr in pool else ""
             lvl = overlay.get(tkr)
-            o2["add_level"] = lvl
-            o2["overlay"] = "Y" if (lvl and spot <= lvl) else ""
+            o2["add_level"] = lvl if lvl is None or lvl < 1e8 else ""
+            o2["overlay"] = "Y" if gate(tkr, spot) else ""
+            if gate_label:
+                o2["add_level"] = gate_label(tkr)
             o2["earnings_date"] = earnings_date(tkr)
             o2["earnings_in_window"] = earnings_in_window(o2["earnings_date"], o["expiry"])
             o2["score"] = round(d * 100 - (o["spread_pct"] or 0), 1)
@@ -374,6 +391,8 @@ def main():
     # Rules v2.1: only names that can become a trade are fetched — open positions + overlay (Buy verdicts).
     # Trim/Hold pool names are never tradable (calls only), so they are not fetched at all.
     tickers |= set(overlay_levels(cfg))
+    macro = {t.strip().upper() for t in cfg.get("macro", []) if t.strip()}
+    tickers |= macro
     live = set(tickers)
     YF_KEEP_EXPIRIES.update(parse_occ(p["contract"])[1].isoformat() for p in positions)
 
@@ -402,7 +421,17 @@ def main():
         for r in marks:
             w.writerow({c: ("" if r.get(c) is None else r.get(c)) for c in MARK_COLS})
 
-    write_csv(ROOT / "screen.csv", build_screen(cfg, chains), SCREEN_COLS)
+    eq_chains = {t: v for t, v in chains.items() if t not in macro}
+    write_csv(ROOT / "screen.csv", build_screen(cfg, eq_chains), SCREEN_COLS)
+    # macro sleeve: same numeric filters, gate = macro_overlay.csv eligibility (tools/macro_score.py)
+    mg = macro_gate(cfg)
+    m_chains = {t: v for t, v in chains.items() if t in macro}
+    m_universe = {t: 1e9 for t in macro}   # every macro ticker is screened; the gate decides Y
+    write_csv(ROOT / "screen_macro.csv",
+              build_screen(cfg, m_chains, universe=m_universe,
+                           gate=lambda t, sp: mg.get(t, (False,))[0],
+                           gate_label=lambda t: f"macro {mg[t][2]}/8 {mg[t][1]}" if t in mg else "macro n/a"),
+              SCREEN_COLS)
 
     fund, cap_pct, max_premium = active_cap(cfg)
     status = dict(asof=run_ts, date=today.isoformat(), fund_value=fund, cap_pct=cap_pct, max_premium=max_premium,

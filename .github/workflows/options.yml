@@ -15,6 +15,7 @@ on:
       - config.json
       - positions.csv
       - fetch_options.py
+      - tools/macro_score.py
       - .github/workflows/options.yml
 
 permissions:
@@ -33,6 +34,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install requests yfinance
+      - run: python tools/macro_score.py || echo "macro score failed (non-fatal)"
       - run: python fetch_options.py
       - name: Commit data
         run: |

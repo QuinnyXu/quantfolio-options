@@ -89,5 +89,14 @@
     "VEEV": 241.0,
     "VST": 157.0
   },
-  "overlay_rule": "pool members whose Quantfolio verdict is Buy / Buy on weakness, with add_level; screen.csv overlay=Y means verdict Buy AND spot <= add_level AND every numeric rule; a null add_level means not tradable until scored"
+  "overlay_rule": "pool members whose Quantfolio verdict is Buy / Buy on weakness, with add_level; screen.csv overlay=Y means verdict Buy AND spot <= add_level AND every numeric rule; a null add_level means not tradable until scored",
+  "macro": [
+    "TLT"
+  ],
+  "macro_rules": {
+    "comment": "Macro overlay v1 (tools/macro_score.py): 4 tests x 0-2; eligible when total >= min_score and trend >= min_trend. Same cap/exits as the equity sleeve; one open position across both sleeves.",
+    "min_score": 6,
+    "min_trend": 1,
+    "value_window_years": 15
+  }
 }

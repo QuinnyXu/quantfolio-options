@@ -17,12 +17,23 @@ Source: yfinance (~15 min delayed) for open positions and overlay names, since C
 Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`):
 - `marks.csv` — each open position: mid, Greeks, P&L, break-even, `earnings_date`, flags `STOP_HIT` / `TARGET_HIT` / `TIME_STOP`
 - `marks_history.csv` — the same, appended every run
+- `screen_macro.csv` — macro-sleeve candidates (TLT) under the same numeric filters; `overlay=Y` = macro scorecard eligible
+- `macro_overlay.csv` / `macro_overlay_history.csv` — the 4-test macro scorecard with every input (FRED + price data)
 - `screen.csv` — long-call candidates on overlay names only: 60–180 DTE, premium $0.30 to the active cap, OI ≥300, spread ≤10%, delta 0.35–0.55. `overlay=Y` means the row meets every rule, including the Quantfolio gate: verdict Buy / Buy on weakness AND spot ≤ `add_level` (shown in the row). Rows without Y are overlay names currently above their add level (near-misses, not tradable); `earnings_in_window` says whether earnings fall before expiry
 - `snapshots/<date>/<TICKER>.csv` — trimmed chain history
 - `journal.csv`, `positions.csv`, `config.json`, `status.json` (run time, sources, active cap, errors)
 
 Universe: `tools/build_pool.py` reads the private `Quantfolio_Index.csv` and writes two ticker lists to `config.json`: `pool` (score ≥ 20, no forensic KILL — reference only) and `overlay` (pool members whose verdict is Buy / Buy on weakness, each with its `add_level`). The run fetches only the overlay names plus open positions; Trim/Hold names are never fetched because they can never be a trade. Re-run the script after any index change.
 Note: most overlay names price beyond the cap at these deltas (NOW, ADSK, NVDA, AVGO, GOOGL, AMZN, VEEV, INTU are share-only at this fund size); in practice UBER, NYT, PTC and VST are the ones that can fit.
+
+## Macro sleeve (v1, added 2026-09-30) — TLT
+A second, separate screen for macro ETFs, starting with TLT (long Treasuries). It does **not** use the good-firm framework; it uses a mechanical 4-test scorecard (`tools/macro_score.py`, written to `macro_overlay.csv` every run, history in `macro_overlay_history.csv`):
+- T1 Value anchor: 30-yr yield percentile in its 15-yr window (≥90th = 2, ≥75th = 1).
+- T2 Regime: 63-day change in the 2-yr yield (≤ −25 bp = 2, −25..+10 = 1, rising = 0) — the market's Fed path.
+- T3 Impulse: +1 if core PCE 3-mo annualized ≤ 3.0%, +1 if unemployment rose ≥ 0.3 pt in 3 months.
+- T4 Trend gate: TLT above its 50-day average and at/above its prior 20-day high = 2; above the 20-day only = 1; else 0.
+Eligible ("Buy on weakness") = total ≥ 6 **and** T4 ≥ 1 — never a dated call on new lows. `screen_macro.csv` lists TLT contracts that pass the same numeric filters; `overlay=Y` means the scorecard is eligible too, and the `add_level` column shows the score (e.g. `macro 6/8 Buy on weakness`).
+Rules: same fund, same cap, calls only, same exits (stop −50%, target +100%, time stop half the DTE). **One open position across both sleeves.** Macro trades are logged in `journal.csv` with `layer=macro`; they are reviewed separately after 10 trades and do not count toward the equity sleeve's 20-trade gate. Data: FRED public CSVs + yfinance. Extension to IAU/GDX needs a gold scorer (not written yet).
 
 ## Daily routine
 1. Evening (after 4:25 pm run): in Cowork, ask "screen?" → Claude reads `screen.csv` + `marks.csv`, applies the Quantfolio overlay, returns ONE pick or "no trade" with entry (limit at mid), stop (−50%), target (+100%), time stop (half the DTE at entry). Most evenings the answer is "no trade".
