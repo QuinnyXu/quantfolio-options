@@ -26,14 +26,14 @@ Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-opt
 Universe: `tools/build_pool.py` reads the private `Quantfolio_Index.csv` and writes two ticker lists to `config.json`: `pool` (score ≥ 20, no forensic KILL — reference only) and `overlay` (pool members whose verdict is Buy / Buy on weakness, each with its `add_level`). The run fetches only the overlay names plus open positions; Trim/Hold names are never fetched because they can never be a trade. Re-run the script after any index change.
 Note: most overlay names price beyond the cap at these deltas (NOW, ADSK, NVDA, AVGO, GOOGL, AMZN, VEEV, INTU are share-only at this fund size); in practice UBER, NYT, PTC and VST are the ones that can fit.
 
-## Macro sleeve (v1, added 2026-09-30) — TLT
-A second, separate screen for macro ETFs, starting with TLT (long Treasuries). It does **not** use the good-firm framework; it uses a mechanical 4-test scorecard (`tools/macro_score.py`, written to `macro_overlay.csv` every run, history in `macro_overlay_history.csv`):
-- T1 Value anchor: 30-yr yield percentile in its 15-yr window (≥90th = 2, ≥75th = 1).
-- T2 Regime: 63-day change in the 2-yr yield (≤ −25 bp = 2, −25..+10 = 1, rising = 0) — the market's Fed path.
-- T3 Impulse: +1 if core PCE 3-mo annualized ≤ 3.0%, +1 if unemployment rose ≥ 0.3 pt in 3 months.
-- T4 Trend gate: TLT above its 50-day average and at/above its prior 20-day high = 2; above the 20-day only = 1; else 0.
-Eligible ("Buy on weakness") = total ≥ 6 **and** T4 ≥ 1 — never a dated call on new lows. `screen_macro.csv` lists TLT contracts that pass the same numeric filters; `overlay=Y` means the scorecard is eligible too, and the `add_level` column shows the score (e.g. `macro 6/8 Buy on weakness`).
-Rules: same fund, same cap, calls only, same exits (stop −50%, target +100%, time stop half the DTE). **One open position across both sleeves.** Macro trades are logged in `journal.csv` with `layer=macro`; they are reviewed separately after 10 trades and do not count toward the equity sleeve's 20-trade gate. Data: FRED public CSVs + yfinance. Extension to IAU/GDX needs a gold scorer (not written yet).
+## Macro sleeve (v1, added 2026-09-30, two-sided 2026-10-01) — TLT
+A second, separate screen for macro ETFs, starting with TLT (long Treasuries). It does **not** use the good-firm framework; it uses a mechanical 4-test scorecard (`tools/macro_score.py`, written to `macro_overlay.csv` every run, history in `macro_overlay_history.csv`). Because TLT is not a good firm, **both directions are allowed**: a bull scorecard (calls) and a mirrored bear scorecard (puts) from the same inputs.
+- T1 Value anchor: 30-yr yield percentile in its 15-yr window. Bull: ≥90th = 2, ≥75th = 1. Bear: ≤10th = 2, ≤25th = 1.
+- T2 Regime: 63-day change in the 2-yr yield (the market's Fed path). Bull: ≤ −25 bp = 2, −25..+10 = 1. Bear: ≥ +25 bp = 2, ≥ −10 = 1.
+- T3 Impulse: Bull: +1 if core PCE 3-mo annualized ≤ 3.0%, +1 if unemployment rose ≥ 0.3 pt in 3 months. Bear: +1 if core PCE ≥ 3.5%, +1 if unemployment flat or lower.
+- T4 Trend gate: Bull: TLT above its 50-day average and at/above its prior 20-day high = 2; above the 20-day only = 1. Bear: below the 50-day and at/below its prior 20-day low = 2; below the 20-day only = 1.
+Eligible = total ≥ 6 **and** trend ≥ 1 **and** value ≥ 1 on that side — never a dated option against the trend, and never chasing the extreme (no puts at record-high yields, no calls at record-low yields). `screen_macro.csv` lists TLT calls and puts that pass the same numeric filters; `overlay=Y` marks the side the scorecard allows, and the `add_level` column shows the scores (e.g. `macro bull/bear 6/2 Buy calls`).
+Rules: same fund, same cap, same exits (stop −50%, target +100%, time stop half the DTE). **One open position across both sleeves.** Macro trades are logged in `journal.csv` with `layer=macro`; they are reviewed separately after 10 trades and do not count toward the equity sleeve's 20-trade gate. Data: FRED public CSVs (with retries and a text-endpoint fallback) + yfinance. Extension to IAU/GDX needs a gold scorer (not written yet).
 
 ## Daily routine
 1. Evening (after 4:25 pm run): in Cowork, ask "screen?" → Claude reads `screen.csv` + `marks.csv`, applies the Quantfolio overlay, returns ONE pick or "no trade" with entry (limit at mid), stop (−50%), target (+100%), time stop (half the DTE at entry). Most evenings the answer is "no trade".

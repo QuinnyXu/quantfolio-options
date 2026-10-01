@@ -3,7 +3,9 @@
 Macro overlay v1 (Quinny, 2026-09-30): a mechanical 4-test scorecard for macro ETFs (TLT first).
 Runs in GitHub Actions before fetch_options.py and writes macro_overlay.csv.
 
-Four tests, each 0-2, total /8. Eligible ("Buy on weakness") = total >= 6 AND trend >= 1.
+Two-sided (Quinny, 2026-10-01): a BULL scorecard (calls) and a BEAR scorecard (puts) from the same
+inputs, mirrored. Eligible = total >= 6 AND trend >= 1 AND value >= 1 on that side. TLT is not a good firm, so both
+directions are allowed; the value anchor stops us shorting at record-high yields or buying at record lows.
   T1 Value anchor   - where the 30-yr Treasury yield sits in its trailing window (FRED DGS30):
                       >= 90th percentile = 2, >= 75th = 1, else 0
   T2 Regime         - market-implied Fed path = 63-trading-day change in the 2-yr yield (FRED DGS2):
@@ -22,22 +24,37 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 FRED = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"
-HEADERS = {"User-Agent": "Mozilla/5.0 (quantfolio-options macro overlay)"}
+FRED_TXT = "https://fred.stlouisfed.org/data/{sid}.txt"
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) quantfolio-options macro overlay"}
 
-def fred(sid):
-    r = requests.get(FRED.format(sid=sid), headers=HEADERS, timeout=30)
-    r.raise_for_status()
+def _parse_pairs(lines):
     out = []
-    for row in csv.reader(r.text.splitlines()):
-        if len(row) < 2 or row[0] in ("DATE", "observation_date"):
+    for line in lines:
+        parts = [x.strip() for x in (line.split(",") if "," in line else line.split())]
+        if len(parts) < 2:
             continue
         try:
-            out.append((date.fromisoformat(row[0]), float(row[1])))
+            out.append((date.fromisoformat(parts[0]), float(parts[1])))
         except ValueError:
-            continue  # "." = missing
-    if not out:
-        raise RuntimeError(f"FRED {sid}: no data")
+            continue  # header / "." missing
     return out
+
+def fred(sid):
+    """FRED public series; csv endpoint with retries, then the plain-text endpoint as fallback."""
+    import time
+    last = None
+    for url in (FRED.format(sid=sid), FRED.format(sid=sid), FRED_TXT.format(sid=sid)):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=(10, 60))
+            r.raise_for_status()
+            out = _parse_pairs(r.text.splitlines())
+            if out:
+                return out
+            last = RuntimeError(f"FRED {sid}: no rows")
+        except Exception as e:  # noqa: BLE001
+            last = e
+            time.sleep(3)
+    raise RuntimeError(f"FRED {sid}: {type(last).__name__}: {str(last)[:80]}")
 
 def percentile_rank(series_vals, x):
     n = len(series_vals)
@@ -54,6 +71,7 @@ def prices(sym, days=400):
 def score_tlt(rules):
     inp, err = {}, []
     t1 = t2 = t3 = t4 = None
+    b1 = b2 = b3 = b4 = None   # bear side (puts)
     # T1 value anchor
     try:
         s = fred("DGS30"); cutoff = s[-1][0] - timedelta(days=365 * rules.get("value_window_years", 15))
@@ -61,6 +79,7 @@ def score_tlt(rules):
         pct = percentile_rank(win, last)
         inp.update(dgs30=last, dgs30_date=s[-1][0].isoformat(), dgs30_pct=round(pct, 1))
         t1 = 2 if pct >= 90 else 1 if pct >= 75 else 0
+        b1 = 2 if pct <= 10 else 1 if pct <= 25 else 0
     except Exception as e:  # noqa: BLE001
         err.append(f"T1:{e}")
     # T2 regime
@@ -69,6 +88,7 @@ def score_tlt(rules):
         chg = (last - prev) * 100  # bp
         inp.update(dgs2=last, dgs2_chg_63d_bp=round(chg, 0))
         t2 = 2 if chg <= -25 else 1 if chg <= 10 else 0
+        b2 = 2 if chg >= 25 else 1 if chg >= -10 else 0
     except Exception as e:  # noqa: BLE001
         err.append(f"T2:{e}")
     # T3 impulse
@@ -79,18 +99,21 @@ def score_tlt(rules):
         inp.update(core_pce_3m_ann=round(pce3, 2), core_pce_date=p[-1][0].isoformat(),
                    unrate=u[-1][1], unrate_chg_3m=round(uchg, 1))
         t3 = (1 if pce3 <= 3.0 else 0) + (1 if uchg >= 0.3 else 0)
+        b3 = (1 if pce3 >= 3.5 else 0) + (1 if uchg <= 0.0 else 0)
     except Exception as e:  # noqa: BLE001
         err.append(f"T3:{e}")
     # T4 trend gate
     try:
         px = prices("TLT"); closes = [c for _, c in px]; last = closes[-1]
-        ma20 = sum(closes[-20:]) / 20; ma50 = sum(closes[-50:]) / 50; hi20 = max(closes[-21:-1])
+        ma20 = sum(closes[-20:]) / 20; ma50 = sum(closes[-50:]) / 50
+        hi20 = max(closes[-21:-1]); lo20 = min(closes[-21:-1])
         inp.update(tlt_close=round(last, 2), tlt_date=px[-1][0].isoformat(), tlt_ma20=round(ma20, 2),
-                   tlt_ma50=round(ma50, 2), tlt_prior_20d_high=round(hi20, 2))
+                   tlt_ma50=round(ma50, 2), tlt_prior_20d_high=round(hi20, 2), tlt_prior_20d_low=round(lo20, 2))
         t4 = 2 if (last > ma50 and last >= hi20) else 1 if last > ma20 else 0
+        b4 = 2 if (last < ma50 and last <= lo20) else 1 if last < ma20 else 0
     except Exception as e:  # noqa: BLE001
         err.append(f"T4:{e}")
-    return dict(t1=t1, t2=t2, t3=t3, t4=t4), inp, err
+    return dict(t1=t1, t2=t2, t3=t3, t4=t4, b1=b1, b2=b2, b3=b3, b4=b4), inp, err
 
 SCORERS = {"TLT": score_tlt}
 
@@ -98,6 +121,7 @@ def main():
     cfg = json.loads((ROOT / "config.json").read_text())
     rules = cfg.get("macro_rules", {})
     min_score, min_trend = rules.get("min_score", 6), rules.get("min_trend", 1)
+    min_value = rules.get("min_value", 1)   # never chase the extreme: the value anchor must be >= 1 on the side taken
     rows = []
     for tkr in cfg.get("macro", []):
         fn = SCORERS.get(tkr.upper())
@@ -105,24 +129,30 @@ def main():
             rows.append(dict(asof=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), ticker=tkr, verdict="no scorer", eligible=""))
             continue
         sc, inp, err = fn(rules)
-        known = [v for v in sc.values() if v is not None]
-        total = sum(known) if len(known) == 4 else None
-        if total is None:
-            verdict, elig = "incomplete", ""
-        elif total >= min_score and (sc["t4"] or 0) >= min_trend:
-            verdict, elig = "Buy on weakness", "Y"
-        elif total >= 4:
-            verdict, elig = "Hold", ""
+        bull = [sc[k] for k in ("t1", "t2", "t3", "t4")]; bear = [sc[k] for k in ("b1", "b2", "b3", "b4")]
+        total = sum(bull) if all(v is not None for v in bull) else None
+        btotal = sum(bear) if all(v is not None for v in bear) else None
+        direction, elig = "", ""
+        if total is None or btotal is None:
+            verdict = "incomplete"
+        elif total >= min_score and (sc["t4"] or 0) >= min_trend and (sc["t1"] or 0) >= min_value:
+            verdict, elig, direction = "Buy calls", "Y", "C"
+        elif btotal >= min_score and (sc["b4"] or 0) >= min_trend and (sc["b1"] or 0) >= min_value:
+            verdict, elig, direction = "Buy puts", "Y", "P"
+        elif max(total, btotal) >= 4:
+            verdict = "Hold (bull %d / bear %d)" % (total, btotal)
         else:
-            verdict, elig = "Avoid", ""
+            verdict = "Avoid (bull %d / bear %d)" % (total, btotal)
         row = dict(asof=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), ticker=tkr,
-                   t1_value=sc["t1"], t2_regime=sc["t2"], t3_impulse=sc["t3"], t4_trend=sc["t4"],
-                   total=total, verdict=verdict, eligible=elig, errors="|".join(err))
+                   t1_value=sc["t1"], t2_regime=sc["t2"], t3_impulse=sc["t3"], t4_trend=sc["t4"], total=total,
+                   b1_value=sc["b1"], b2_regime=sc["b2"], b3_impulse=sc["b3"], b4_trend=sc["b4"], bear_total=btotal,
+                   verdict=verdict, eligible=elig, direction=direction, errors="|".join(err))
         row.update(inp)
         rows.append(row)
-    cols = ["asof", "ticker", "t1_value", "t2_regime", "t3_impulse", "t4_trend", "total", "verdict", "eligible",
+    cols = ["asof", "ticker", "t1_value", "t2_regime", "t3_impulse", "t4_trend", "total",
+            "b1_value", "b2_regime", "b3_impulse", "b4_trend", "bear_total", "verdict", "eligible", "direction",
             "dgs30", "dgs30_date", "dgs30_pct", "dgs2", "dgs2_chg_63d_bp", "core_pce_3m_ann", "core_pce_date",
-            "unrate", "unrate_chg_3m", "tlt_close", "tlt_date", "tlt_ma20", "tlt_ma50", "tlt_prior_20d_high", "errors"]
+            "unrate", "unrate_chg_3m", "tlt_close", "tlt_date", "tlt_ma20", "tlt_ma50", "tlt_prior_20d_high", "tlt_prior_20d_low", "errors"]
     with open(ROOT / "macro_overlay.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore"); w.writeheader()
         for r in rows:
@@ -134,7 +164,7 @@ def main():
         if new: w.writeheader()
         for r in rows: w.writerow({c: ("" if r.get(c) is None else r.get(c)) for c in cols})
     for r in rows:
-        print(r["ticker"], r.get("total"), r.get("verdict"), r.get("errors", ""))
+        print(r["ticker"], "bull", r.get("total"), "bear", r.get("bear_total"), r.get("verdict"), r.get("errors", ""))
 
 if __name__ == "__main__":
     main()

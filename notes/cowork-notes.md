@@ -12,9 +12,9 @@ Source of truth: `options_experiment_handover.md` in `C:\Users\xkxuq\Documents\S
 - Graduation: 20 logged equity trades. journal.csv has a `layer` column (equity / macro).
 - VST 160C Jan-2027 (8.65) = Trade 0, outside experiment; stop 4.30 / target 13.00 / time stop 2026-12-01. 09-30 close: 138.35, mid 6.85, −20.8%.
 
-## Macro sleeve v1 (added 2026-09-30)
+## Macro sleeve v1 (added 2026-09-30; two-sided 2026-10-01)
 - `config.json`: `macro: ["TLT"]`, `macro_rules {min_score 6, min_trend 1, value_window_years 15}`.
-- `tools/macro_score.py` runs in Actions before fetch_options.py → `macro_overlay.csv` (+ `_history`). Tests ×0–2: T1 DGS30 percentile in 15y (≥90→2, ≥75→1); T2 63-day change in DGS2 (≤−25bp→2, ≤+10→1, else 0); T3 core PCE 3m-annualized ≤3.0% (+1) and UNRATE +≥0.3 in 3m (+1); T4 trend: close > MA50 and ≥ prior 20-day high → 2, > MA20 → 1, else 0. Eligible = total ≥6 AND T4 ≥1. All inputs written to the CSV.
+- `tools/macro_score.py` runs in Actions before fetch_options.py → `macro_overlay.csv` (+ `_history`). Tests ×0–2: T1 DGS30 percentile in 15y (≥90→2, ≥75→1); T2 63-day change in DGS2 (≤−25bp→2, ≤+10→1, else 0); T3 core PCE 3m-annualized ≤3.0% (+1) and UNRATE +≥0.3 in 3m (+1); T4 trend: close > MA50 and ≥ prior 20-day high → 2, > MA20 → 1, else 0. Two-sided: bear scorecard (b1–b4) mirrors the bull one (yields ≤10th/25th pct, 2y up ≥25bp, core PCE ≥3.5% & unemployment flat/down, TLT below MA50 and ≤ prior 20-day low). Eligible = total ≥6 AND trend ≥1 AND value ≥1 on that side; `direction` C/P; screen_macro.csv shows calls and puts, overlay=Y only on the allowed side. FRED fetch: retries + /data/{sid}.txt fallback (first run timed out on all three series). All inputs written to the CSV.
 - `fetch_options.py`: equity screen excludes macro names; `screen_macro.csv` = TLT contracts under the same numeric filters, overlay=Y iff scorecard eligible; add_level column shows "macro N/8 verdict".
 - First real scorecard arrives with the first Actions run after the push. Expectation: T4 0 (TLT at record lows) → not eligible yet. Gold (IAU/GDX) scorer not written.
 

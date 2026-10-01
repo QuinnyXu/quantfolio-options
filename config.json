@@ -94,9 +94,10 @@
     "TLT"
   ],
   "macro_rules": {
-    "comment": "Macro overlay v1 (tools/macro_score.py): 4 tests x 0-2; eligible when total >= min_score and trend >= min_trend. Same cap/exits as the equity sleeve; one open position across both sleeves.",
+    "comment": "Macro overlay v1, two-sided (tools/macro_score.py): bull (calls) and bear (puts) scorecards, 4 tests x 0-2 each; eligible when total >= min_score, trend >= min_trend and value >= min_value on that side. Same cap/exits as the equity sleeve; one open position across both sleeves.",
     "min_score": 6,
     "min_trend": 1,
+    "min_value": 1,
     "value_window_years": 15
   }
 }

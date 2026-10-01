@@ -314,18 +314,20 @@ def macro_gate(cfg):
     out = {}
     with open(p, newline="") as f:
         for r in csv.DictReader(f):
-            out[r["ticker"].upper()] = (r.get("eligible") == "Y", r.get("verdict", ""), r.get("total", ""))
+            out[r["ticker"].upper()] = (r.get("eligible") == "Y", r.get("verdict", ""),
+                                        f"{r.get('total','')}/{r.get('bear_total','')}", r.get("direction", ""))
     return out
 
-def build_screen(cfg, chains, universe=None, gate=None, gate_label=None):
-    """universe: {TICKER: level-or-None}; gate(tkr, spot) -> bool decides overlay=Y.
-    Default = equity sleeve: overlay names, spot <= add_level."""
+def build_screen(cfg, chains, universe=None, gate=None, gate_label=None, types=None):
+    """universe: {TICKER: level-or-None}; gate(tkr, spot, opt_type) -> bool decides overlay=Y.
+    Default = equity sleeve: overlay names, spot <= add_level, calls only (cfg.screen.types)."""
     s = cfg["screen"]
+    types = types or s["types"]
     fund, cap_pct, max_premium = active_cap(cfg)
     pool = set(t.upper() for t in cfg.get("pool", []))
     overlay = overlay_levels(cfg) if universe is None else universe
     if gate is None:
-        gate = lambda t, sp: bool(overlay.get(t)) and sp <= overlay[t]
+        gate = lambda t, sp, ty: bool(overlay.get(t)) and sp <= overlay[t]
     out = []
     for tkr, (spot, rows) in chains.items():
         if not spot or spot > s.get("max_underlying_price", 1e9):
@@ -333,7 +335,7 @@ def build_screen(cfg, chains, universe=None, gate=None, gate_label=None):
         if tkr not in overlay:      # position-only tickers are marked, not screened
             continue
         for o in rows:
-            if o["type"] not in s["types"]:
+            if o["type"] not in types:
                 continue
             if not (s["min_dte"] <= o["dte"] <= s["max_dte"]):
                 continue
@@ -352,7 +354,7 @@ def build_screen(cfg, chains, universe=None, gate=None, gate_label=None):
             o2["in_pool"] = "Y" if tkr in pool else ""
             lvl = overlay.get(tkr)
             o2["add_level"] = lvl if lvl is None or lvl < 1e8 else ""
-            o2["overlay"] = "Y" if gate(tkr, spot) else ""
+            o2["overlay"] = "Y" if gate(tkr, spot, o["type"]) else ""
             if gate_label:
                 o2["add_level"] = gate_label(tkr)
             o2["earnings_date"] = earnings_date(tkr)
@@ -428,9 +430,9 @@ def main():
     m_chains = {t: v for t, v in chains.items() if t in macro}
     m_universe = {t: 1e9 for t in macro}   # every macro ticker is screened; the gate decides Y
     write_csv(ROOT / "screen_macro.csv",
-              build_screen(cfg, m_chains, universe=m_universe,
-                           gate=lambda t, sp: mg.get(t, (False,))[0],
-                           gate_label=lambda t: f"macro {mg[t][2]}/8 {mg[t][1]}" if t in mg else "macro n/a"),
+              build_screen(cfg, m_chains, universe=m_universe, types=["C", "P"],
+                           gate=lambda t, sp, ty: t in mg and mg[t][0] and mg[t][3] == ty,
+                           gate_label=lambda t: f"macro bull/bear {mg[t][2]} {mg[t][1]}" if t in mg else "macro n/a"),
               SCREEN_COLS)
 
     fund, cap_pct, max_premium = active_cap(cfg)
