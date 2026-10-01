@@ -104,7 +104,10 @@ def bls(sid):
     for o in series[0]["data"]:
         if not o["period"].startswith("M"):
             continue
-        out.append((date(int(o["year"]), int(o["period"][1:]), 1), float(o["value"])))
+        try:
+            out.append((date(int(o["year"]), int(o["period"][1:]), 1), float(o["value"])))
+        except (TypeError, ValueError):
+            continue  # BLS prints "-" for a not-yet-published month
     out.sort()
     if len(out) < 6:
         raise RuntimeError(f"BLS {sid}: only {len(out)} rows")
