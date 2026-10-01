@@ -11,8 +11,9 @@
 - Fundamental overlay: `Quantfolio_Index.csv` in the Quantfolio Tracker folder (schema v3). No company-insight files in this public repo.
 
 ## Automation (GitHub Actions, no manual steps)
-Runs weekdays 9:50 am, 12:05 pm, 4:25 pm ET (cron in UTC; shifts +1h after Nov 1 — adjust then). Also runs on any push to `config.json`, `positions.csv`, `fetch_options.py`, or the workflow.
-Source: yfinance (~15 min delayed) for open positions and overlay names, since CBOE's free JSON is an overnight snapshot; CBOE for the rest of the pool (snapshots only), yfinance as fallback either way. `status.json` → `quote_times` shows each ticker's quote timestamp and `sources` shows which feed was used. Greeks from CBOE or Black-Scholes. Earnings dates from yfinance (blank if unavailable).
+Runs weekdays at **11:25 am and 3:25 pm ET** (cron 15:25 / 19:25 UTC while on EDT; shift to 16:25 / 20:25 UTC after Nov 1). GitHub's queue adds 20–90 minutes, so expect the first to land around noon–1 pm (the exit check) and the second around 3:45–5 pm (the closing read for the evening pick). Also runs on any push to `config.json`, `positions.csv`, `fetch_options.py`, `tools/macro_score.py`, or the workflow; "Run workflow" on the Actions page runs it on demand.
+Source: yfinance (~15 min delayed) for open positions, overlay names and TLT; CBOE for nothing that matters any more. Greeks from Black-Scholes. Earnings dates from yfinance (blank if unavailable).
+**Alerts:** after every run, `tools/alerts.py` opens a GitHub issue (title starts with `ALERT`) when a screen row has `overlay=Y` or an open position carries a flag — one issue per event, no duplicates. Turn on GitHub notifications for the repo (mobile app or email) and a buzz means something passed every rule; silence means nothing to do.
 
 Outputs (raw URL base `https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`):
 - `marks.csv` — each open position: mid, Greeks, P&L, break-even, `earnings_date`, flags `STOP_HIT` / `TARGET_HIT` / `TIME_STOP`

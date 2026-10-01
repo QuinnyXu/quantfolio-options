@@ -28,4 +28,4 @@ Source of truth: `options_experiment_handover.md` in `C:\Users\xkxuq\Documents\S
 - ADSK re-scored 09-29 (21/25 Like, FV 191/265/320, Buy on weakness); pushes landed.
 
 ## Routine (ET)
-Evening after ~4:45 pm: "screen?" → one pick or no trade (also read screen_macro.csv + macro_overlay.csv). Morning 9:50–10:30: place limit, then "log trade: …". ~12:20 pm: check marks, exit on flag. DST: shift cron −1h around Oct 30.
+Evening after ~4:45 pm: "screen?" → one pick or no trade (also read screen_macro.csv + macro_overlay.csv). Morning 9:50–10:30: place limit, then "log trade: …". ~12:20 pm: check marks, exit on flag. Schedule (10-01): 11:25 am + 3:25 pm ET (15:25/19:25 UTC); lag 20–90 min. Alerts: tools/alerts.py opens a GitHub issue on overlay=Y or a marks flag. DST: shift both crons +1h UTC after Nov 1.

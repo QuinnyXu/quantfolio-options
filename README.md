@@ -29,7 +29,7 @@ Data: CBOE delayed quotes (15 min) with yfinance fallback. Greeks come from CBOE
 5. Add to the Project notes: `Options data: https://raw.githubusercontent.com/QuinnyXu/quantfolio-options/main/`
 
 ## Schedule
-Weekdays 13:50, 16:05 and 20:25 UTC (≈9:50 am, 12:05 pm, 4:25 pm EDT; one hour later in ET after Nov 1). Change in `.github/workflows/options.yml`.
+Weekdays 15:25 and 19:25 UTC (11:25 am and 3:25 pm EDT; one hour later in ET after Nov 1 unless shifted). GitHub cron lags 20–90 min. `tools/alerts.py` opens a GitHub issue when a pick or a flag appears.
 
 ## Rules (v2.1)
 - Experiment fund: $1,000 (`fund_value` in `config.json`). Max premium per trade 25% of the fund; 15% while the fund is below $700. The premium is the max loss.
